@@ -20,7 +20,6 @@ const style = {
 
 export default function App() {
   const [boxSize, setBoxSize] = useState(null);
-  const [fix, setFix] = useState({});
 
   const getFixValues = () => {
     fetch(`${API}/status`, {
@@ -32,33 +31,15 @@ export default function App() {
   useEffect(getFixValues, []);
 
   return boxSize ? (
-    <Status
-      boxSize={boxSize}
-      setBoxSize={setBoxSize}
-      fix={fix}
-      setFix={setFix}
-    />
+    <Status boxSize={boxSize} setBoxSize={setBoxSize} />
   ) : (
     <h1>Loading...</h1>
   );
 }
-function Status({ boxSize, setBoxSize, fix, setFix }) {
+function Status({ boxSize, setBoxSize }) {
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const [enable, setEnable] = useState(true);
-
-  console.log("fix", fix);
-  const addFixValues = (fix) => {
-    console.log("backend", fix);
-    fetch(`${API}/status`, {
-      method: "POST",
-      body: JSON.stringify(fix),
-      headers: { "Content-Type": "application/json" },
-    })
-      .then((data) => data.json())
-      .then((value) => setBoxSize(value[0]));
-  };
 
   return (
     <div className="App">
@@ -103,28 +84,12 @@ function Status({ boxSize, setBoxSize, fix, setFix }) {
                     padding: "10px",
                   }}
                 >
-                  <button
-                    className="edit-button"
-                    onClick={() => setEnable(!enable)}
-                  >
-                    {enable ? "Edit detection" : "Save Changes"}
-                  </button>
-                  <button
-                    className="save-button"
-                    onClick={() => addFixValues(fix)}
-                  >
-                    Sync to SetApp
-                  </button>
+                  <button className="edit-button">Edit detection</button>
+                  <button className="save-button">Sync to SetApp</button>
                 </div>
               </div>
 
-              <CropDemo
-                setBoxSize={setBoxSize}
-                boxSize={boxSize}
-                enable={enable}
-                fix={fix}
-                setFix={setFix}
-              />
+              <CropDemo setBoxSize={setBoxSize} boxSize={boxSize} />
             </div>
           </Box>
         </Modal>
@@ -133,18 +98,18 @@ function Status({ boxSize, setBoxSize, fix, setFix }) {
   );
 }
 
-function CropDemo({ setBoxSize, boxSize, enable, fix, setFix }) {
-  const getFixValues = () => {
+function CropDemo({ setBoxSize, boxSize }) {
+  console.log("boxSize", boxSize);
+  const addFixValues = (values) => {
     fetch(`${API}/status`, {
-      method: "GET",
+      method: "POST",
+      body: JSON.stringify(values),
+      headers: { "Content-Type": "application/json" },
     })
       .then((data) => data.json())
-      .then((values) => setBoxSize(values));
+      .then((value) => setBoxSize(value[0]));
   };
-  useEffect(getFixValues, []);
 
-  console.log("boxSize", boxSize[0]);
-  console.log("enable", enable);
   const [crop, setCrop] = useState(boxSize[0]);
 
   const onComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -154,35 +119,27 @@ function CropDemo({ setBoxSize, boxSize, enable, fix, setFix }) {
       }
     }
     console.log("croppedArea", croppedArea);
-    setFix(croppedArea);
-    console.log("croppedArea-fix", fix);
-    // setBoxSize({ croppedArea });
+    addFixValues(croppedArea);
   }, []);
-
   return (
     <div>
-      {enable ? (
-        <ReactCrop
-          crop={crop}
-          onChange={(c) => setCrop(c)}
-          onComplete={onComplete}
-          keepSelection="false"
-          className="crop-container"
-          disabled="false"
-        >
-          <img className="error-image" src="Error_1.png" />
-        </ReactCrop>
-      ) : (
-        <ReactCrop
-          crop={crop}
-          onChange={(c) => setCrop(c)}
-          onComplete={onComplete}
-          keepSelection="false"
-          className="crop-container"
-        >
-          <img className="error-image" src="Error_1.png" />
-        </ReactCrop>
-      )}
+      <ReactCrop
+        crop={crop}
+        style={{ border: "20px" }}
+        onChange={(c) => setCrop(c)}
+        onComplete={onComplete}
+        keepSelection="false"
+        className="crop-container"
+      >
+        <img className="error-image" src="Error_1.png" />
+      </ReactCrop>
     </div>
   );
+}
+
+function Display({ crop }) {
+  console.log(crop);
+  let { x, y, width, height } = crop[0];
+  console.log(x, y, width, height);
+  return <p>{x}</p>;
 }
