@@ -23,8 +23,8 @@ const style = {
 export default function App() {
   const [count, setCount] = useState(0);
   const [boxSize, setBoxSize] = useState(null);
-  const getFixValues = async () => {
-    await fetch(`${API}/status`, {
+  const getFixValues = () => {
+    fetch("http://localhost:9001/status", {
       method: "GET",
     })
       .then((data) => data.json())
@@ -57,14 +57,15 @@ function Status({ boxSize, setBoxSize }) {
 
   const addFixValues = () => {
     let localdata = localStorage.getItem("position");
-    fetch(`${API}/status`, {
+    fetch(`http://localhost:9001/status`, {
       method: "POST",
       body: localdata,
       headers: { "Content-Type": "application/json" },
     })
       .then((data) => data.json())
       .then((value) => setBoxSize(value[0]))
-      .then(() => console.log("localdata", localdata));
+      .then(() => console.log("localdata", localdata))
+      .then(() => console.log("last", boxSize));
   };
   const [state, setState] = useState({
     openAlert: false,
@@ -145,7 +146,7 @@ function Status({ boxSize, setBoxSize }) {
                   </button>
                   <Snackbar
                     open={openAlert}
-                    autoHideDuration={2000}
+                    autoHideDuration={1000}
                     onClose={handleCloseAlert}
                     anchorOrigin={{ vertical, horizontal }}
                   >
