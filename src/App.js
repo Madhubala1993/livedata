@@ -7,6 +7,8 @@ import Button from "@mui/material/Button";
 import ReactCrop from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { API } from "./global";
+import { height, width } from "@mui/system";
+import { Alert, Snackbar } from "@mui/material";
 
 const style = {
   position: "absolute",
@@ -19,47 +21,66 @@ const style = {
 };
 
 export default function App() {
+  const [count, setCount] = useState(0);
   const [boxSize, setBoxSize] = useState(null);
-  const [fix, setFix] = useState({});
-
-  const getFixValues = () => {
-    fetch(`${API}/status`, {
+  const getFixValues = async () => {
+    await fetch(`${API}/status`, {
       method: "GET",
     })
       .then((data) => data.json())
-      .then((values) => setBoxSize(values));
+      .then((values) => setBoxSize(values))
+      .then(() => console.log("pos", boxSize[0]))
+      .then(() => localStorage.setItem("position", JSON.stringify(boxSize[0])));
   };
-  useEffect(getFixValues, []);
+  useEffect(() => {
+    getFixValues();
+  }, [count]);
+  if (count < 1) {
+    setTimeout(() => {
+      setCount(count + 1);
+    }, 500);
+  }
 
   return boxSize ? (
-    <Status
-      boxSize={boxSize}
-      setBoxSize={setBoxSize}
-      fix={fix}
-      setFix={setFix}
-    />
+    <Status boxSize={boxSize} setBoxSize={setBoxSize} />
   ) : (
-    <h1>Loading...</h1>
+    "Loading..."
   );
 }
-function Status({ boxSize, setBoxSize, fix, setFix }) {
+
+function Status({ boxSize, setBoxSize }) {
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+
   const [enable, setEnable] = useState(true);
 
-  console.log("fix", fix);
-  const addFixValues = (fix) => {
-    console.log("backend", fix);
+  const addFixValues = () => {
+    let localdata = localStorage.getItem("position");
     fetch(`${API}/status`, {
       method: "POST",
-      body: JSON.stringify(fix),
+      body: localdata,
       headers: { "Content-Type": "application/json" },
     })
       .then((data) => data.json())
-      .then((value) => setBoxSize(value[0]));
+      .then((value) => setBoxSize(value[0]))
+      .then(() => console.log("localdata", localdata));
+  };
+  const [state, setState] = useState({
+    openAlert: false,
+    vertical: "top",
+    horizontal: "left",
+  });
+
+  const { vertical, horizontal, openAlert } = state;
+
+  const handleClick = (newState) => {
+    setState({ openAlert: true, ...newState });
   };
 
+  const handleCloseAlert = () => {
+    setState({ ...state, openAlert: false });
+  };
   return (
     <div className="App">
       <div className="nytt-container">
@@ -71,6 +92,7 @@ function Status({ boxSize, setBoxSize, fix, setFix }) {
         <button className="live-status" onClick={handleOpen}>
           Live Status
         </button>
+
         <Modal
           open={open}
           aria-labelledby="modal-modal-title"
@@ -111,20 +133,30 @@ function Status({ boxSize, setBoxSize, fix, setFix }) {
                   </button>
                   <button
                     className="save-button"
-                    onClick={() => addFixValues(fix)}
+                    onClick={() => {
+                      handleClick({
+                        vertical: "top",
+                        horizontal: "right",
+                      });
+                      addFixValues();
+                    }}
                   >
                     Sync to SetApp
                   </button>
+                  <Snackbar
+                    open={openAlert}
+                    autoHideDuration={2000}
+                    onClose={handleCloseAlert}
+                    anchorOrigin={{ vertical, horizontal }}
+                  >
+                    <Alert onClose={handleCloseAlert} severity="success">
+                      Data added to MySql
+                    </Alert>
+                  </Snackbar>
                 </div>
               </div>
 
-              <CropDemo
-                setBoxSize={setBoxSize}
-                boxSize={boxSize}
-                enable={enable}
-                fix={fix}
-                setFix={setFix}
-              />
+              <CropDemo enable={enable} />
             </div>
           </Box>
         </Modal>
@@ -133,19 +165,16 @@ function Status({ boxSize, setBoxSize, fix, setFix }) {
   );
 }
 
-function CropDemo({ setBoxSize, boxSize, enable, fix, setFix }) {
-  const getFixValues = () => {
-    fetch(`${API}/status`, {
-      method: "GET",
-    })
-      .then((data) => data.json())
-      .then((values) => setBoxSize(values));
-  };
-  useEffect(getFixValues, []);
+function CropDemo({ enable }) {
+  var cropValues = JSON.parse(localStorage.getItem("position"));
 
-  console.log("boxSize", boxSize[0]);
-  console.log("enable", enable);
-  const [crop, setCrop] = useState(boxSize[0]);
+  const [crop, setCrop] = useState({
+    unit: "px",
+    x: cropValues.x,
+    y: cropValues.y,
+    width: cropValues.width,
+    height: cropValues.height,
+  });
 
   const onComplete = useCallback((croppedArea, croppedAreaPixels) => {
     for (var key of Object.keys(croppedArea)) {
@@ -154,9 +183,7 @@ function CropDemo({ setBoxSize, boxSize, enable, fix, setFix }) {
       }
     }
     console.log("croppedArea", croppedArea);
-    setFix(croppedArea);
-    console.log("croppedArea-fix", fix);
-    // setBoxSize({ croppedArea });
+    localStorage.setItem("position", JSON.stringify(croppedArea));
   }, []);
 
   return (
@@ -183,6 +210,10 @@ function CropDemo({ setBoxSize, boxSize, enable, fix, setFix }) {
           <img className="error-image" src="Error_1.png" />
         </ReactCrop>
       )}
+      <p>
+        values: x-{cropValues.x} x-{cropValues.y} width-{cropValues.width}{" "}
+        height-{cropValues.height}
+      </p>
     </div>
   );
 }
